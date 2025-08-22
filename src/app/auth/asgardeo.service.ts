@@ -1,42 +1,50 @@
 import { Injectable } from "@angular/core";
-import { AsgardeoSPAClient } from "@asgardeo/auth-spa";
+import { AsgardeoSPAClient, AuthSPAClientConfig } from "@asgardeo/auth-spa";
 import { ASGARDEO_CONFIG } from "./asgardeo.config";
 
 @Injectable({ providedIn: "root" })
 export class AsgardeoService {
-  private client = AsgardeoSPAClient.getInstance();
-  private init = this.client?.initialize?.(ASGARDEO_CONFIG); // run once
+  private client!: AsgardeoSPAClient;
+  private readyPromise: Promise<void>;
 
+  constructor() {
+    this.client = AsgardeoSPAClient.getInstance()!;
+    this.readyPromise = this.client.initialize(ASGARDEO_CONFIG as AuthSPAClientConfig).then(() => {});
+  }
+
+  /** Wait for client initialization */
+  async ready(): Promise<void> {
+    return this.readyPromise;
+  }
+
+  /** Check authentication state */
   async isAuthenticated(): Promise<boolean> {
-    await this.init;
-    const result = await this.client?.isAuthenticated?.();
-    return result === true;
+    await this.ready();
+    return (await this.client.isAuthenticated()) ?? false;
   }
 
+  /** Get access token if authenticated */
   async getAccessToken(): Promise<string | null> {
-    await this.init;
-    const isAuth = await this.client?.isAuthenticated?.();
-    if (!isAuth) return null;
-    return (await this.client?.getAccessToken?.()) ?? null;
+    await this.ready();
+    if (!(await this.client.isAuthenticated())) return null;
+    return this.client.getAccessToken();
   }
 
+  /** Get basic user info (ID token claims + userinfo) */
   async getBasicUserInfo(): Promise<any> {
-    await this.init;
-    return this.client?.getBasicUserInfo?.() ?? null;
+    await this.ready();
+    return this.client.getBasicUserInfo();
   }
 
+  /** Get ID token if authenticated */
   async getIDToken(): Promise<string | null> {
-    await this.init;
-    const isAuth = await this.client?.isAuthenticated?.();
-    if (!isAuth) return null;
-    const idToken = await this.client?.getIDToken?.();
+    await this.ready();
+    if (!(await this.client.isAuthenticated())) return null;
+    const idToken = this.client.getIDToken();
     return typeof idToken === "string" ? idToken : null;
   }
 
-  ready(): Promise<void> {
-    return Promise.resolve(this.init).then(() => {});
-  }
-
+  /** Detect whether current URL is a callback from Asgardeo */
   isOnCallbackURL(): boolean {
     try {
       if (typeof window === "undefined") return false;
@@ -48,33 +56,33 @@ export class AsgardeoService {
   }
 
   async signIn(): Promise<void> {
-    await this.init;
-    if (!this.client?.signIn) {
-      throw new Error("Asgardeo client is not initialized.");
+    await this.ready();
+    try {
+      await this.client.signIn();
+    } catch (e) {
+      console.error("[Asgardeo] signIn failed:", e);
+      throw e as Error;
     }
-    await this.client.signIn();
   }
 
+
+  /** Handle redirect callback if present */
   async handleCallbackIfPresent(): Promise<void> {
-    await this.init;
-    if (!this.isOnCallbackURL()) {
-      return;
+    await this.ready();
+    if (this.isOnCallbackURL()) {
+      await this.client.signIn({ callOnlyOnRedirect: true });
     }
-    if (!this.client?.signIn) {
-      throw new Error("Asgardeo client is not initialized.");
-    }
-    await this.client.signIn({ callOnlyOnRedirect: true });
   }
 
+  /** Trigger sign-out */
   async signOut(): Promise<void> {
-    await this.init;
-    if (!this.client?.signOut) {
-      throw new Error("Asgardeo client is not initialized.");
-    }
-    await this.client.signOut();
+    await this.ready();
+    this.client.signOut();
   }
 
+  /** Register event listeners */
   on(event: "sign-in" | "sign-out" | "token-refresh" | string, cb: (data?: any) => void): void {
-    (this.client as any)?.on?.(event, cb);
+    (this.client as any).on(event, cb);
   }
 }
+

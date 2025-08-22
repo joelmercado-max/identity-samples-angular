@@ -6,7 +6,6 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { App } from './app/app';
 import { routes } from './app/app.routes';
 import { authInterceptor } from './app/auth/auth.interceptor';
-import { ASGARDEO_CONFIG } from './app/app.config';
 
 bootstrapApplication(App, {
   providers: [
