@@ -1,25 +1,25 @@
-import { Component, inject, OnInit } from "@angular/core";
-import { CommonModule } from "@angular/common";
+import { Component } from "@angular/core";
 import { Router } from "@angular/router";
-import { AsgardeoAuthService } from "@asgardeo/auth-angular";
+import { AsgardeoService } from "../../auth/asgardeo.service";
 
 @Component({
   selector: "app-callback",
   standalone: true,
-  imports: [CommonModule],
-  template: `<p>Finishing login…</p>`
+  template: `<p>Completing sign-in…</p>`
 })
-export class CallbackComponent implements OnInit {
-  private auth = inject(AsgardeoAuthService);
-  private router = inject(Router);
+export class CallbackComponent {
+  constructor(private auth: AsgardeoService, private router: Router) {
+    this.finish();
+  }
 
-  async ngOnInit() {
-    // Complete the OIDC code flow and then go home (or wherever you prefer)
+  private async finish() {
     try {
-      await this.auth.signIn();     // SDK will detect it's the callback turn
-      await this.router.navigateByUrl("/");
+      await this.auth.handleCallbackIfPresent();
     } catch (e) {
-      console.error(e);
+      console.error("[Callback] handleCallbackIfPresent failed", e);
+    } finally {
+      // send the user somewhere sensible after login
+      this.router.navigateByUrl("/");
     }
   }
 }

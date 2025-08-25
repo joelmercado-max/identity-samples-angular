@@ -47,10 +47,18 @@ export class HomeComponent {
   login()  { this.auth.signIn().catch(console.error); }
   logout() { this.auth.signOut().catch(console.error); }
 
+  
   callHello() {
-    this.http.get("http://localhost:8080/hello").subscribe({
-      next: r => this.result = r,
-      error: e => this.result = e
-    });
-  }
+  console.log("[Home] callHello clicked");
+  this.http.get("http://localhost:8080/hello", { observe: "response" }).subscribe({
+    next: (res) => {
+      console.log("[Home] /hello OK:", res.status, res);
+      this.result = res.body ?? res;
+    },
+    error: (err) => {
+      console.error("[Home] /hello error:", err);
+      this.result = err; // show the full HttpErrorResponse object
+    }
+  });
+}
 }
